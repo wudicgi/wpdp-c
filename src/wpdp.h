@@ -76,15 +76,6 @@ struct _WPDP {
     // 当前数据堆的操作参数
     WPDP_OpenMode       _open_mode;
     WPDP_CacheMode      _cache_mode;
-#ifndef BUILD_READONLY
-    uint8_t             _compression;
-#endif
-#ifndef BUILD_READONLY
-    uint8_t             _checksum;
-#endif
-#ifndef BUILD_READONLY
-    WPDP_String         **_attribute_indexes;
-#endif
     WPDP_Entry_Args     *_args;
     // 当前数据堆的文件信息
     uint16_t            _file_version;
@@ -153,12 +144,6 @@ struct _WPDP_Entries {
 
 WPDP_API int wpdp_open_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
                                 WPIO_Stream *stream_i, WPDP_OpenMode mode, WPDP **wpdp);
-#ifndef BUILD_READONLY
-WPDP_API int wpdp_create_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
-                                     WPIO_Stream *stream_i);
-WPDP_API int wpdp_compound_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
-                                       WPIO_Stream *stream_i);
-#endif
 WPDP_API int wpdp_export_stream(WPDP *dp, WPIO_Stream *stream_out, WPDP_ExportType type);
 
 /*
@@ -169,31 +154,14 @@ WPDP_API int wpdp_compound(const char *filename);
 WPDP_API int wpdp_export(WPDP *dp, const char *filename_out, WPDP_ExportType type);
 */
 WPDP_API int wpdp_close(WPDP *dp);
-#ifndef BUILD_READONLY
-WPDP_API int wpdp_flush(WPDP *dp);
-#endif
 
 WPDP_API int64_t wpdp_file_space_used(WPDP *dp);
 WPDP_API int64_t wpdp_file_space_available(WPDP *dp);
-
-#ifndef BUILD_READONLY
-WPDP_API int wpdp_set_cache_mode(WPDP *dp, WPDP_CacheMode mode);
-WPDP_API int wpdp_set_compression(WPDP *dp, WPDP_CompressionType type);
-WPDP_API int wpdp_set_checksum(WPDP *dp, WPDP_ChecksumType type);
-#endif
 
 WPDP_API int wpdp_iterator_init(WPDP *dp, WPDP_Iterator **iterator_out);
 WPDP_API int wpdp_iterator_next(WPDP_Iterator *iterator);
 
 WPDP_API void *wpdp_query(WPDP *dp, const char *attr_name, const char *attr_value);
-
-#ifndef BUILD_READONLY
-WPDP_API int wpdp_add(WPDP *dp, const char *contents, int64_t length,
-                      WPDP_Entry_Attributes *attributes);
-WPDP_API int wpdp_begin(WPDP *dp, WPDP_Entry_Attributes *attributes, int64_t length);
-WPDP_API int wpdp_transfer(WPDP *dp, const void *data, int32_t len);
-WPDP_API int wpdp_commit(WPDP *dp);
-#endif
 
 WPDP_API void *wpdp_file_info(WPDP *dp);
 WPDP_API char *wpdp_library_version(void);

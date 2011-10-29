@@ -90,17 +90,8 @@ int64_t section_metadata_get_section_length(Section *sect);
 int section_metadata_add(Section *sect, WPDP_Entry_Args *args);
 
 int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out);
-#ifndef BUILD_READONLY
-    int section_indexes_create(WPIO_Stream *stream);
-#endif
-#ifndef BUILD_READONLY
-    int section_indexes_flush(Section *sect);
-#endif
 int64_t section_indexes_get_section_length(Section *sect);
 void *section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value);
-#ifndef BUILD_READONLY
-    void *section_indexes_index(Section *sect, WPDP_Entry_Args *args);
-#endif
 
 int struct_create_header(StructHeader **header_out);
 int struct_create_section(StructSection **section_out);
