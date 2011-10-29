@@ -36,63 +36,6 @@ int section_init(uint8_t sect_type, WPIO_Stream *stream,
     return WPDP_OK;
 }
 
-#ifndef BUILD_READONLY
-
-/**
- * 创建区域
- *
- * @param file_type    文件类型
- * @param sect_type    区域类型
- * @param stream       文件操作对象
- */
-int section_create(uint8_t file_type, uint8_t sect_type,
-                   WPIO_Stream *stream) {
-    assert(IN_ARRAY_3(file_type, HEADER_TYPE_CONTENTS, HEADER_TYPE_METADATA, HEADER_TYPE_INDEXES));
-    assert(IN_ARRAY_3(sect_type, SECTION_TYPE_CONTENTS, SECTION_TYPE_METADATA, SECTION_TYPE_INDEXES));
-
-    int rc;
-    StructHeader *header;
-    StructSection *section;
-
-    rc = struct_create_header(&header);
-    RETURN_VAL_IF_NON_ZERO(rc);
-
-    header->type = file_type;
-
-    switch (sect_type) {
-        case SECTION_TYPE_CONTENTS:
-            header->ofsContents = HEADER_BLOCK_SIZE;
-            break;
-        case SECTION_TYPE_METADATA:
-            header->ofsMetadata = HEADER_BLOCK_SIZE;
-            break;
-        case SECTION_TYPE_INDEXES:
-            header->ofsIndexes = HEADER_BLOCK_SIZE;
-            break;
-    }
-
-    rc = struct_create_section(&section);
-    RETURN_VAL_IF_NON_ZERO(rc);
-
-    section->type = sect_type;
-
-    wpio_seek(stream, 0, SEEK_SET);
-    rc = struct_write_header(stream, header);
-    RETURN_VAL_IF_NON_ZERO(rc);
-    rc = struct_write_section(stream, section);
-    RETURN_VAL_IF_NON_ZERO(rc);
-
-    // 写入了重要的结构和信息，但可能接下来还有其他操作，
-    // 所以写入流的缓冲区的操作由继承类中的方法进行
-
-    wpdp_free(header);
-    wpdp_free(section);
-
-    return WPDP_OK;
-}
-
-#endif
-
 WPIO_Stream *section_get_stream(Section *sect) {
     return sect->_stream;
 }
@@ -103,17 +46,6 @@ int section_read_header(Section *sect) {
 
     return WPDP_OK;
 }
-
-#ifndef BUILD_READONLY
-
-int section_write_header(Section *sect) {
-    section_seek(sect, 0, SEEK_SET, _ABSOLUTE);
-    struct_write_header(sect->_stream, sect->_header);
-
-    return WPDP_OK;
-}
-
-#endif
 
 int section_read_section(Section *sect, uint8_t sect_type) {
     assert(IN_ARRAY_3(sect_type, SECTION_TYPE_CONTENTS, SECTION_TYPE_METADATA, SECTION_TYPE_INDEXES));
@@ -129,24 +61,6 @@ int section_read_section(Section *sect, uint8_t sect_type) {
 
     return WPDP_OK;
 }
-
-#ifndef BUILD_READONLY
-
-/**
- * 写入区域信息
- */
-int section_write_section(Section *sect) {
-//    int rc;
-    int64_t offset;
-
-    offset = _get_section_offset(sect, sect->type);
-    section_seek(sect, offset, SEEK_SET, _ABSOLUTE);
-    struct_write_section(sect->_stream, sect->_section);
-
-    return WPDP_OK;
-}
-
-#endif
 
 /**
  * 获取当前位置的偏移量
@@ -207,26 +121,6 @@ int section_read(Section *sect, void *buffer, int length) {
 
     return WPDP_OK;
 }
-
-#ifndef BUILD_READONLY
-
-/**
- * 在当前位置写入指定长度的数据
- *
- * @param data         要写入的数据
- *
- * @return 总是 true
- */
-int section_write(Section *sect, void *data, int length) {
-    int len_didwrite;
-
-    len_didwrite = (int)wpio_write(sect->_stream, data, (size_t)length);
-    // WPDP_StreamOperationException::checkIsWriteExactly($len_didwrite, strlen($data));
-
-    return WPDP_OK;
-}
-
-#endif
 
 /**
  * 获取区域的绝对偏移量
