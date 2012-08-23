@@ -12,6 +12,12 @@
 
 /**
  * 当前库的 INT32 限制所允许的最大文件大小
+ *
+ *   PHP_INT_MAX = 2^31 -    1 = 2147483647 = 2GB - 1B
+ * _FILESIZE_MAX = 2^31 - 2^25 = 2113929216 = 2GB - 32MB = 1.96875GB
+ *
+ *     C_INT_MAX = 2^63 -    1 = 9223372036854775807 = 8EB - 1B
+ * _FILESIZE_MAX = ...         =        137438953472 = 128GB
  */
 #define _FILESIZE_MAX 2113929216
 
@@ -67,6 +73,14 @@ WPDP_SECTION_FILENAMES *wpdp_get_section_filenames(const char *filename) {
     return filenames;
 }
 */
+
+WPDP_API char *wpdp_library_version(void) {
+    return _LIBRARY_VERSION;
+}
+
+WPDP_API bool wpdp_library_compatible_with(const char *version) {
+    return true;
+}
 
 /**
  * 打开数据堆 (基于 WPIO_Stream)
@@ -192,6 +206,15 @@ WPDP_API int wpdp_close(WPDP *dp) {
     return WPDP_OK;
 }
 
+/**
+ * 获取当前数据堆文件的版本
+ *
+ * @return 当前数据堆文件的版本
+ */
+WPDP_API void *wpdp_file_info(WPDP *dp) {
+    return NULL;
+}
+
 WPDP_API int64_t wpdp_file_space_used(WPDP *dp) {
     int64_t length = 0;
 
@@ -232,14 +255,26 @@ WPDP_API int64_t wpdp_file_space_available(WPDP *dp) {
  */
 WPDP_API int wpdp_iterator_init(WPDP *dp, WPDP_Iterator **iterator_out) {
     PacketMetadata *meta_first;
+    WPDP_Iterator *iterator;
+
     section_metadata_get_first(dp->_metadata, &meta_first);
 
-    WPDP_Iterator *iterator = wpdp_new_zero(WPDP_Iterator, 1);
+    iterator = wpdp_new_zero(WPDP_Iterator, 1);
     iterator->dp = dp;
     iterator->first = meta_first;
     iterator->current = meta_first;
 
     *iterator_out = iterator;
+
+    return WPDP_OK;
+}
+
+WPDP_API int wpdp_iterator_entry(WPDP_Iterator *iterator, WPDP_Entry **entry_out) {
+    WPDP_Entry *entry;
+
+    entry = wpdp_entry_create(iterator->dp, iterator->current);
+
+    *entry_out = entry;
 
     return WPDP_OK;
 }
@@ -262,15 +297,6 @@ WPDP_API int wpdp_iterator_next(WPDP_Iterator *iterator) {
  * @return 成功时返回 WPDP_Entries 对象，指定属性不存在索引时返回 false
  */
 WPDP_API void *wpdp_query(WPDP *dp, const char *attr_name, const char *attr_value) {
-    return NULL;
-}
-
-/**
- * 获取当前数据堆文件的版本
- *
- * @return 当前数据堆文件的版本
- */
-WPDP_API void *wpdp_file_info(WPDP *dp) {
     return NULL;
 }
 
@@ -393,92 +419,3 @@ WPDP_API int wpdp_open_file(const char *filename, WPDP_OpenMode mode, WPDP **dp_
 
 
 */
-
-
-
-
-
-
-
-WPDP_String_Builder *wpdp_string_builder_create(int init_capacity) {
-    WPDP_String_Builder *builder = wpdp_new_zero(WPDP_String_Builder, 1);
-
-    builder->str = wpdp_malloc_zero(init_capacity + 1);
-    builder->length = 0;
-    builder->capacity = init_capacity;
-
-    return builder;
-}
-
-WPDP_String_Builder *wpdp_string_builder_build(void *str, int len) {
-    WPDP_String_Builder *builder = wpdp_new_zero(WPDP_String_Builder, 1);
-
-    builder->str = str;
-    builder->length = len;
-    builder->capacity = len;
-
-    return builder;
-}
-
-int wpdp_string_builder_append(WPDP_String_Builder *builder, void *data, int len) {
-    if (len > (builder->capacity - builder->length)) {
-        int new_capacity = builder->capacity * 2;
-        if (new_capacity < (builder->length + len)) {
-            new_capacity = (builder->length + len);
-        }
-        builder->capacity = new_capacity;
-        builder->str = wpdp_realloc(builder->str, builder->capacity + 1);
-        *((char *)builder->str + builder->capacity) = '\0';
-    }
-
-    memcpy(builder->str + builder->length, data, (size_t)len);
-    builder->length += len;
-
-    return WPDP_OK;
-}
-
-int wpdp_string_builder_free(WPDP_String_Builder *builder) {
-    wpdp_free(builder->str);
-    wpdp_free(builder);
-
-    return WPDP_OK;
-}
-
-WPDP_String *wpdp_string_direct(void *str, int len) {
-    WPDP_String *wpdp_str = wpdp_new_zero(WPDP_String, 1);
-    wpdp_str->len = len;
-    wpdp_str->str = str;
-
-    return wpdp_str;
-}
-
-WPDP_String *wpdp_string_create(const char *str, int len) {
-    WPDP_String *wpdp_str = wpdp_new_zero(WPDP_String, 1);
-    wpdp_str->len = len;
-    wpdp_str->str = wpdp_malloc_zero(len + 1);
-    memcpy(wpdp_str->str, str, (size_t)len);
-
-    return wpdp_str;
-}
-
-WPDP_String *wpdp_string_from_cstr(const char *str) {
-    return wpdp_string_create(str, (int)strlen(str));
-}
-
-int wpdp_string_compare(WPDP_String *str_1, WPDP_String *str_2) {
-    int retval = memcmp(str_1->str, str_2->str,
-        (size_t)((str_1->len < str_2->len) ? str_1->len : str_2->len));
-
-    if (retval) {
-        return retval;
-    } else {
-        return (str_1->len - str_2->len);
-    }
-}
-
-int wpdp_string_free(WPDP_String *str) {
-    wpdp_free(str->str);
-    wpdp_free(str);
-
-    return WPDP_OK;
-}
