@@ -1,0 +1,10 @@
+
+# /bin/
+/bin/*
+
+# /obj/
+/obj/*
+
+# /src/
+/src/*.depend
+/src/*.layout
