@@ -21,29 +21,49 @@
 #define ELEMENT_KEY_OFFSET      0
 #define ELEMENT_VALUE_OFFSET    ELEMENT_KEY_SIZE
 
+/**
+ * 获取结点 p_node 中下标为 index 的元素指针 (blob 中)
+ */
 static void *_std_elem_ptr(PacketNode *p_node, int index) {
     return ((void *)(p_node->node->blob) + (ELEMENT_SIZE * index));
 }
 
+/**
+ * 获取结点 p_node 中下标为 index 的元素指针 (blob_ex 中)
+ */
 static void *_ext_elem_ptr(PacketNode *p_node, int index) {
     return ((void *)(p_node->blob_ex) + (ELEMENT_SIZE * index));
 }
+
 /*
 #define BLOB_EX_KEY_STR_DISTANCE(p_node, i) \
     _com_elem_key_str_distance(_ext_elem_ptr(p_node, i))
 */
+
+/**
+ * 获取元素 ptr_elem 的 element key 距结尾距离的字节数 (blob 或 blob_ex 中)
+ */
 static int _com_elem_key_str_distance(void *ptr_elem) {
     return (int)(*((uint16_t *)(ptr_elem + ELEMENT_KEY_OFFSET)));
 }
 
+/**
+ * 获取结点 p_node 中距结尾 distance 字节处的 element key 指针 (blob 中)
+ */
 static void *_std_elem_key_str_ptr(PacketNode *p_node, int distance) {
     return ((void *)p_node->node->blob + NODE_DATA_SIZE - distance);
 }
 
+/**
+ * 获取结点 p_node 中距结尾 distance 字节处的 element key 指针 (blob_ex 中)
+ */
 static void *_ext_elem_key_str_ptr(PacketNode *p_node, int distance) {
     return ((void *)p_node->blob_ex + NODE_DATA_SIZE_EXPANDED - distance);
 }
 
+/**
+ * 获取结点 p_node 中距结尾 distance 字节处的 element key 字符串长度 (blob 或 blob_ex 中)
+ */
 static int _com_elem_key_str_len(void *ptr_key_str) {
     return ((int)(*((int8_t *)ptr_key_str)));
 }
@@ -61,10 +81,30 @@ struct _SectionIndexesCustom {
 static int64_t _get_offset_root_from_table(Section *sect, WPDP_String *attr_name);
 
 static int _read_table(Section *sect);
+static int _write_table(Section *sect);
+
+static int _tree_insert(Section *sect, int64_t root_offset, WPDP_String *key, int64_t value);
+static int _split_node(Section *sect, PacketNode *p_node);
+static int _split_node_get_parent_node(Section *sect, PacketNode *p_node);
+static int _split_node_divide(Section *sect, PacketNode *p_node, PacketNode *node_2, PacketNode *node_parent);
+static int _split_node_get_middle(Section *sect, PacketNode *p_node, PacketNode *node_2);
+static int _split_node_get_position_in_parent(Section *sect, PacketNode *p_node, PacketNode *node_parent);
 
 static PacketNode *_get_node(Section *sect, int64_t offset, int64_t offset_parent);
+static int _create_node(Section *sect, int is_leaf, int64_t offset_parent, PacketNode **p_node_out);
+
+static int _optimize_cache(Section *sect);
+static int _flush_nodes(Section *sect);
+static int _write_node(Section *sect, PacketNode *p_node);
+
+static int _append_element(PacketNode *p_node, WPDP_String *key, int64_t value);
+static int _insert_element_after(PacketNode *p_node, WPDP_String *key, int64_t value, int pos);
+static int _is_overflowed(PacketNode *p_node);
+static int _compute_node_size(PacketNode *p_node);
+static int _compute_element_size(WPDP_String *key);
 
 static int _binary_search_leftmost(PacketNode *p_node, WPDP_String *desired, bool for_lookup);
+static int _binary_search_rightmost(PacketNode *p_node, WPDP_String *desired, bool for_insert);
 
 static int _key_compare(PacketNode *p_node, int index, WPDP_String *key);
 static WPDP_String *_get_element_key(PacketNode *p_node, int index);
@@ -361,21 +401,19 @@ static int _binary_search_leftmost(PacketNode *p_node, WPDP_String *desired, boo
 /**
  * 比较结点中指定下标元素的键与另一个给定键的大小
  *
- * @param array   $node   结点
- * @param integer $index  key1 在结点元素数组中的下标
- * @param string  $key    key2
+ * @param node      结点
+ * @param index     key1 在结点元素数组中的下标
+ * @param key       key2
  *
- * @return integer 如果 key1 小于 key2，返回 < 0 的值，大于则返回 > 0 的值，
- *                 等于则返回 0
+ * @return  如果 key1 小于 key2，返回 < 0 的值，大于则返回 > 0 的值，
+ *          等于则返回 0
  */
 static int _key_compare(PacketNode *p_node, int index, WPDP_String *key) {
 //    assert('array_key_exists($index, $node[\'elements\'])');
 
     WPDP_String *key_in_elem = _get_element_key(p_node, index);
 
-    int retval = wpdp_string_compare(key_in_elem, key);
-
-    return retval;
+    return wpdp_string_compare(key_in_elem, key);
 }
 
 static WPDP_String *_get_element_key(PacketNode *p_node, int index) {

@@ -100,8 +100,11 @@ int section_metadata_add(Section *sect, WPDP_Entry_Args *args);
 /* indexes */
 
 int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out);
+int section_indexes_create(WPIO_Stream *stream);
+int section_indexes_flush(Section *sect);
 int64_t section_indexes_get_section_length(Section *sect);
 void *section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value);
+int section_indexes_index(Section *sect, WPDP_Entry_Args *args);
 
 /* struct */
 
