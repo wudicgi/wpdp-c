@@ -145,7 +145,7 @@ WPDP_API char *wpdp_library_version(void);
 WPDP_API bool wpdp_library_compatible_with(const char *version);
 
 /**
- * 构造函数
+ * 打开数据堆
  */
 WPDP_API int wpdp_open_stream(
     WPIO_Stream *stream_c,  // 内容文件操作对象
@@ -158,6 +158,33 @@ WPDP_API int wpdp_open_stream(
 /*
 WPDP_API WPDP *wpdp_open(const char *filename, WPDP_OpenMode mode);
 */
+
+/**
+ * 创建数据堆
+ */
+WPDP_API int wpdp_create_stream(
+    WPIO_Stream *stream_c,  // 内容文件操作对象
+    WPIO_Stream *stream_m,  // 元数据文件操作对象
+    WPIO_Stream *stream_i   // 索引文件操作对象
+);
+
+/**
+ * 合并数据堆
+ */
+WPDP_API int wpdp_compound_stream(
+    WPIO_Stream *stream_c,  // 内容文件操作对象
+    WPIO_Stream *stream_m,  // 元数据文件操作对象
+    WPIO_Stream *stream_i   // 索引文件操作对象
+);
+
+/**
+ * 导出数据堆
+ */
+WPDP_API int wpdp_export_stream(
+    WPDP            *dp,            // 数据堆
+    WPIO_Stream     *stream_out,    // 输出所要写入的流
+    WPDP_ExportType export_type     // 导出文件类型
+);
 
 /**
  * 关闭当前打开的数据堆

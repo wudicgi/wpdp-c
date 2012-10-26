@@ -83,7 +83,7 @@ WPDP_API bool wpdp_library_compatible_with(const char *version) {
 }
 
 /**
- * 打开数据堆 (基于 WPIO_Stream)
+ * 打开数据堆
  *
  * @param stream_c 内容文件操作对象
  * @param stream_m 元数据文件操作对象
@@ -91,7 +91,7 @@ WPDP_API bool wpdp_library_compatible_with(const char *version) {
  * @param mode     打开模式
  */
 WPDP_API int wpdp_open_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
-                                WPIO_Stream *stream_i, WPDP_OpenMode mode, WPDP **dp_out) {
+                              WPIO_Stream *stream_i, WPDP_OpenMode mode, WPDP **dp_out) {
     assert(IN_ARRAY_2(mode, WPDP_MODE_READONLY, WPDP_MODE_READWRITE));
 
     WPDP *dp = NULL;
@@ -185,23 +185,58 @@ WPDP_API int wpdp_open_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
 }
 
 /**
+ * 创建数据堆
+ *
+ * @param stream_c  内容文件操作对象
+ * @param stream_m  元数据文件操作对象
+ * @param stream_i  索引文件操作对象
+ */
+WPDP_API int wpdp_create_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
+                                WPIO_Stream *stream_i) {
+    int rc;
+
+    // 检查所依赖库的版本
+    CHECK_DEPS();
+
+    // 检查流的可读性、可写性与可定位性
+    CHECK_CAPS(stream_c, CAPABILITY_READ_WRITE_SEEK);
+    CHECK_CAPS(stream_m, CAPABILITY_READ_WRITE_SEEK);
+    CHECK_CAPS(stream_i, CAPABILITY_READ_WRITE_SEEK);
+
+/*
+    rc = contents_create(stream_c);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = metadata_create(stream_m);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = indexes_create(stream_i);
+    RETURN_VAL_IF_NON_ZERO(rc);
+*/
+
+    return WPDP_OK;
+}
+
+/**
  * 关闭当前打开的数据堆
  */
 WPDP_API int wpdp_close(WPDP *dp) {
     if (!dp->_opened) {
-//                    "The data pile has already closed");
+        error_set_msg("The data pile has already closed");
         return WPDP_ERROR_BAD_FUNCTION_CALL;
     }
+
+/*
+    if (dp->_open_mode != WPDP_MODE_READONLY) {
+        wpdp_flush(dp);
+    }
+*/
 
     dp->_contents = NULL;
     dp->_metadata = NULL;
     dp->_indexes = NULL;
 
-    dp->_open_mode = 0;
-
-    dp->_space_available = 0;
-
-    dp->_opened = false;
+    free(dp);
 
     return WPDP_OK;
 }
