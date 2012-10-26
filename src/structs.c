@@ -32,6 +32,9 @@
         *(ptr_out) = ptr; \
     } while (0)
 
+/**
+ * 创建结构体。成功时返回 WPDP_OK, 失败时返回错误码。
+ */
 int struct_create_header(StructHeader **header_out) {
     StructHeader *header;
 
@@ -56,6 +59,9 @@ int struct_create_header(StructHeader **header_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 创建结构体。成功时返回 WPDP_OK, 失败时返回错误码。
+ */
 int struct_create_section(StructSection **section_out) {
     StructSection *section;
 
@@ -76,6 +82,9 @@ int struct_create_section(StructSection **section_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 创建结构体。成功时返回 WPDP_OK, 失败时返回错误码。
+ */
 int struct_create_metadata(StructMetadata **metadata_out) {
     StructMetadata *metadata;
 
@@ -103,6 +112,9 @@ int struct_create_metadata(StructMetadata **metadata_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 创建结构体。成功时返回 WPDP_OK, 失败时返回错误码。
+ */
 int struct_create_index_table(StructIndexTable **index_table_out) {
     StructIndexTable *index_table;
 
@@ -120,6 +132,9 @@ int struct_create_index_table(StructIndexTable **index_table_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 创建结构体。成功时返回 WPDP_OK, 失败时返回错误码。
+ */
 int struct_create_node(StructNode **node_out) {
     StructNode *node;
 
@@ -139,6 +154,9 @@ int struct_create_node(StructNode **node_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_read_header(WPIO_Stream *stream, StructHeader **header_out) {
     STRUCT_READ_FIXED(stream, header_out, StructHeader);
 
@@ -151,6 +169,9 @@ int struct_read_header(WPIO_Stream *stream, StructHeader **header_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_read_section(WPIO_Stream *stream, StructSection **section_out) {
     STRUCT_READ_FIXED(stream, section_out, StructSection);
 
@@ -163,6 +184,9 @@ int struct_read_section(WPIO_Stream *stream, StructSection **section_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_read_node(WPIO_Stream *stream, StructNode **node_out) {
     STRUCT_READ_FIXED(stream, node_out, StructNode);
 
@@ -175,6 +199,9 @@ int struct_read_node(WPIO_Stream *stream, StructNode **node_out) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_read_metadata(WPIO_Stream *stream, StructMetadata **ptr_out, bool noblob) {
     STRUCT_READ_VARIANT(stream, ptr_out, noblob, StructMetadata,
                         METADATA_SIGNATURE, METADATA_BLOCK_SIZE);
@@ -182,6 +209,9 @@ int struct_read_metadata(WPIO_Stream *stream, StructMetadata **ptr_out, bool nob
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_read_index_table(WPIO_Stream *stream, StructIndexTable **ptr_out, bool noblob) {
     do {
         StructIndexTable *ptr = wpdp_malloc_zero(INDEX_TABLE_BLOCK_SIZE);
@@ -210,6 +240,9 @@ int struct_read_index_table(WPIO_Stream *stream, StructIndexTable **ptr_out, boo
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_write_header(WPIO_Stream *stream, StructHeader *header) {
     STRUCT_WRITE_FIXED(stream, header, StructHeader);
 
@@ -218,18 +251,27 @@ int struct_write_header(WPIO_Stream *stream, StructHeader *header) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_write_section(WPIO_Stream *stream, StructSection *section) {
     STRUCT_WRITE_FIXED(stream, section, StructSection);
 
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_write_node(WPIO_Stream *stream, StructNode *node) {
     STRUCT_WRITE_FIXED(stream, node, StructNode);
 
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_write_metadata(WPIO_Stream *stream, StructMetadata *metadata) {
     memset((void *)metadata + metadata->lenActual, 0, (size_t)(metadata->lenBlock - metadata->lenActual));
 
@@ -238,6 +280,9 @@ int struct_write_metadata(WPIO_Stream *stream, StructMetadata *metadata) {
     return RETURN_CODE(WPDP_OK);
 }
 
+/**
+ * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ */
 int struct_write_index_table(WPIO_Stream *stream, StructIndexTable *index_table) {
     memset((void *)index_table + index_table->lenActual, 0, (size_t)(index_table->lenBlock - index_table->lenActual));
 
