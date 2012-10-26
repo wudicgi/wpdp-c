@@ -117,13 +117,18 @@ static int64_t _get_element_value(PacketNode *p_node, int index);
  * @param integer $mode     打开模式
  */
 int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out) {
+    int rc;
+    Section *sect;
+
     assert(IN_ARRAY_2(mode, WPDP_MODE_READONLY, WPDP_MODE_READWRITE));
 
-    Section *sect;
-    int rc = section_init(SECTION_TYPE_INDEXES, stream, mode, &sect);
+    rc = section_init(SECTION_TYPE_INDEXES, stream, mode, &sect);
     RETURN_VAL_IF_NON_ZERO(rc);
 
     sect->custom = wpdp_new_zero(Custom, 1);
+    if (sect->custom == NULL) {
+        return WPDP_ERROR_INTERNAL;
+    }
     ((Custom *)sect->custom)->_p_node_count = 0;
 
     rc = _read_table(sect);
@@ -137,6 +142,71 @@ int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect
     *sect_out = sect;
 
     return RETURN_CODE(WPDP_OK);
+}
+
+/**
+ * 创建索引文件
+ *
+ * @param stream    文件操作对象
+ */
+int section_indexes_create(WPIO_Stream *stream) {
+    int rc;
+    StructIndexTable *table;
+    StructSection *sect;
+
+    rc = section_create(HEADER_TYPE_INDEXES, SECTION_TYPE_INDEXES, stream);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = struct_create_index_table(&table);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = struct_write_index_table(stream, table);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = wpio_seek(stream, HEADER_BLOCK_SIZE, SEEK_SET);
+    if (rc == EOF) {
+        return WPDP_ERROR;
+    }
+    rc = struct_read_section(stream, &sect);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    sect->ofsTable = SECTION_BLOCK_SIZE;
+
+    rc = wpio_seek(stream, HEADER_BLOCK_SIZE, SEEK_SET);
+    if (rc == EOF) {
+        return WPDP_ERROR;
+    }
+    rc = struct_write_section(stream, sect);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    // 写入了重要的结构和信息，将流的缓冲区写入
+    rc = wpio_flush(stream);
+    if (rc == EOF) {
+        return WPDP_ERROR;
+    }
+
+    return WPDP_OK;
+}
+
+/**
+ * 将缓冲内容写入文件
+ *
+ * 该方法会从缓存中去除某些结点
+ */
+int section_indexes_flush(Section *sect) {
+    /*
+    _flush_nodes();
+    */
+
+    // to be noticed
+    section_seek(sect, 0, SEEK_END, _ABSOLUTE);
+    int64_t length = section_tell(sect, _RELATIVE);
+    sect->_section->length = length;
+    section_write_section(sect, SECTION_TYPE_INDEXES);
+
+    wpio_flush(sect->_stream);
+
+    return WPDP_OK;
 }
 
 int64_t section_indexes_get_section_length(Section *sect) {
