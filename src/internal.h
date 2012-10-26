@@ -31,13 +31,13 @@ enum _OffsetType {
 
 // Common.php: abstract class WPDP_Common
 struct _Section {
-    // 通用属性
-    WPDP_OpenMode   _open_mode;
-    WPIO_Stream     *_stream;
-    off64_t         _offset_base;
-    StructHeader    *_header;
-    StructSection   *_section;
-    // 附加信息
+    /* 通用属性 */
+    WPDP_OpenMode   _open_mode;     // 文件打开模式
+    WPIO_Stream     *_stream;       // 文件操作对象
+    off64_t         _offset_base;   // 偏移量基数
+    StructHeader    *_header;       // 头信息
+    StructSection   *_section;      // 区域信息
+    /* 附加信息 */
     uint8_t         type;
     void            *custom;
 };
@@ -55,11 +55,15 @@ struct _WPDP_Entry_Args {
     WPDP_Entry_Attributes   *attributes;            // 条目属性
 };
 
+/* entry */
+
 WPDP_Entry_Attributes *wpdp_entry_attributes_create(void);
 int wpdp_entry_attributes_add(WPDP_Entry_Attributes *attrs, WPDP_Entry_Attribute *attr);
 int wpdp_entry_attributes_free(WPDP_Entry_Attributes *attrs);
 
 WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String *value, bool is_index);
+
+/* section */
 
 int section_init(uint8_t sect_type, WPIO_Stream *stream,
                  WPDP_OpenMode mode, Section **sect_out);
@@ -69,11 +73,13 @@ WPIO_Stream *section_get_stream(Section *sect);
 int section_read_header(Section *sect);
 int section_write_header(Section *sect);
 int section_read_section(Section *sect, uint8_t sect_type);
-int section_write_section(Section *sect);
+int section_write_section(Section *sect, uint8_t sect_type);
 int64_t section_tell(Section *sect, OffsetType offset_type);
 int section_seek(Section *sect, int64_t offset, int origin, OffsetType offset_type);
 int section_read(Section *sect, void *buffer, int length);
-int section_write(Section *sect, void *data, int length);
+int section_write(Section *sect, void *buffer, int length);
+
+/* contents */
 
 int section_contents_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out);
 int section_contents_create(WPIO_Stream *stream);
@@ -83,15 +89,21 @@ int section_contents_begin(Section *sect, int64_t length, WPDP_Entry_Args *args)
 int section_contents_transfer(Section *sect, WPDP_Entry_Args *args, const void *data, int32_t len);
 int section_contents_commit(Section *sect, WPDP_Entry_Args *args);
 
+/* metadata */
+
 int section_metadata_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out);
 int section_metadata_create(WPIO_Stream *stream);
 int section_metadata_flush(Section *sect);
 int64_t section_metadata_get_section_length(Section *sect);
 int section_metadata_add(Section *sect, WPDP_Entry_Args *args);
 
+/* indexes */
+
 int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect_out);
 int64_t section_indexes_get_section_length(Section *sect);
 void *section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value);
+
+/* struct */
 
 int struct_create_header(StructHeader **header_out);
 int struct_create_section(StructSection **section_out);

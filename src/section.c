@@ -8,12 +8,14 @@ static int64_t _get_section_offset(Section *sect, uint8_t sect_type);
 /**
  * 构造函数
  *
- * @param type     区域类型
- * @param stream   文件操作对象
- * @param mode     打开模式
+ * @param   type    区域类型
+ * @param   stream  文件操作对象
+ * @param   mode    打开模式
  */
 int section_init(uint8_t sect_type, WPIO_Stream *stream,
                  WPDP_OpenMode mode, Section **sect_out) {
+    int rc;
+
     assert(IN_ARRAY_3(sect_type, SECTION_TYPE_CONTENTS, SECTION_TYPE_METADATA, SECTION_TYPE_INDEXES));
     assert(IN_ARRAY_2(mode, WPDP_MODE_READONLY, WPDP_MODE_READWRITE));
 
@@ -28,25 +30,68 @@ int section_init(uint8_t sect_type, WPIO_Stream *stream,
     sect->_stream = stream;
     sect->type = sect_type;
 
-    section_read_header(sect);
-    section_read_section(sect, sect_type);
+    rc = section_read_header(sect);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = section_read_section(sect, sect_type);
+    RETURN_VAL_IF_NON_ZERO(rc);
 
     *sect_out = sect;
 
     return WPDP_OK;
 }
 
+/**
+ * 创建文件
+ *
+ * @param file_type     文件类型
+ * @param section_type  区域类型
+ * @param stream        文件操作对象
+ */
+int section_create(uint8_t file_type, uint8_t sect_type,
+                   WPIO_Stream *stream) {
+
+}
+
 WPIO_Stream *section_get_stream(Section *sect) {
     return sect->_stream;
 }
 
+/**
+ * 读取头信息
+ */
 int section_read_header(Section *sect) {
+    int rc;
+
     section_seek(sect, 0, SEEK_SET, _ABSOLUTE);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
     struct_read_header(sect->_stream, &sect->_header);
+    RETURN_VAL_IF_NON_ZERO(rc);
 
     return WPDP_OK;
 }
 
+/**
+ * 写入头信息
+ */
+int section_write_header(Section *sect) {
+    int rc;
+
+    rc = section_seek(sect, 0, SEEK_SET, _ABSOLUTE);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = struct_write_header(sect->_stream, &sect->_header);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    return WPDP_OK;
+}
+
+/**
+ * 读取区域信息
+ *
+ * @param uint8_t   type    区域类型
+ */
 int section_read_section(Section *sect, uint8_t sect_type) {
     assert(IN_ARRAY_3(sect_type, SECTION_TYPE_CONTENTS, SECTION_TYPE_METADATA, SECTION_TYPE_INDEXES));
 
@@ -54,10 +99,31 @@ int section_read_section(Section *sect, uint8_t sect_type) {
     int64_t offset;
 
     offset = _get_section_offset(sect, sect_type);
-    section_seek(sect, offset, SEEK_SET, _ABSOLUTE);
+
+    rc = section_seek(sect, offset, SEEK_SET, _ABSOLUTE);
+    RETURN_VAL_IF_NON_ZERO(rc);
     rc = struct_read_section(sect->_stream, &sect->_section);
     RETURN_VAL_IF_NON_ZERO(rc);
+
     sect->_offset_base = offset;
+
+    return WPDP_OK;
+}
+
+/**
+ * 写入区域信息
+ */
+int section_write_section(Section *sect, uint8_t sect_type) {
+    int rc;
+    int64_t offset;
+
+    offset = _get_section_offset(sect, sect_type);
+
+    rc = section_seek(sect, offset, SEEK_SET, _ABSOLUTE);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    rc = struct_write_section(sect->_stream, &sect->_section);
+    RETURN_VAL_IF_NON_ZERO(rc);
 
     return WPDP_OK;
 }
@@ -107,11 +173,11 @@ int section_seek(Section *sect, int64_t offset, int origin, OffsetType offset_ty
 /**
  * 从当前位置开始读取指定长度的数据
  *
- * @param length       要读取数据的长度
- * @param offset       偏移量 (可选，默认为 null，即从当前位置开始读取)
- * @param offset_type  偏移量类型 (可选，默认为绝对偏移量)
+ * @param length        要读取数据的长度
+ * @param offset        偏移量 (可选，默认为 null，即从当前位置开始读取)
+ * @param offset_type   偏移量类型 (可选，默认为绝对偏移量)
  *
- * @return 读取到的数据
+ * @return 实际读取的字节数
  */
 int section_read(Section *sect, void *buffer, int length) {
     int len_didread;
@@ -119,13 +185,31 @@ int section_read(Section *sect, void *buffer, int length) {
     len_didread = (int)wpio_read(sect->_stream, buffer, (size_t)length);
 //    WPDP_StreamOperationException::checkIsReadExactly(strlen($data), $length);
 
-    return WPDP_OK;
+    return len_didread;
+}
+
+/**
+ * 在指定偏移量 (或当前位置) 写入指定长度的数据
+ *
+ * @param data          要写入的数据
+ * @param offset        偏移量 (可选，默认为 null，即在当前位置写入)
+ * @param offset_type   偏移量类型 (可选，默认为绝对偏移量)
+ *
+ * @return 实际写入的字节数
+ */
+int section_write(Section *sect, void *buffer, int length) {
+    int len_written;
+
+    len_written = wpio_write(sect->_stream, buffer, length);
+//    WPDP_StreamOperationException::checkIsWriteExactly($len_written, strlen($data));
+
+    return len_written;
 }
 
 /**
  * 获取区域的绝对偏移量
  *
- * @param type 区域类型
+ * @param sect_type 区域类型
  *
  * @return 区域的绝对偏移量
  */
