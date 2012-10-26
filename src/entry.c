@@ -1,8 +1,38 @@
 #include "internal.h"
 
+WPDP_Entry *wpdp_entry_create(WPDP *dp, PacketMetadata *meta, WPDP_Entry_Attributes *attributes) {
+    WPDP_Entry *entry;
+
+    entry = wpdp_new_zero(WPDP_Entry, 1);
+
+    entry->dp = dp;
+//    entry->info = info;
+
+//    meta->metadata->
+
+    entry->attributes = attributes;
+
+    return entry;
+}
+
+
+
 #define DEFAULT_CAPACITY    10
 
 static int _ensure_capacity(WPDP_Entry_Attributes *attrs, int min);
+
+static int _ensure_capacity(WPDP_Entry_Attributes *attrs, int min) {
+    if (attrs->capacity < min) {
+        int num = attrs->capacity * 2;
+        if (num < min) {
+            num = min;
+        }
+        attrs->capacity = num;
+        attrs->attrs = wpdp_realloc(attrs->attrs, ((int)sizeof(WPDP_Entry_Attribute *) * attrs->capacity));
+    }
+
+    return WPDP_OK;
+}
 
 WPDP_Entry_Attributes *wpdp_entry_attributes_create(void) {
     WPDP_Entry_Attributes *attrs;
@@ -42,7 +72,7 @@ int wpdp_entry_attributes_free(WPDP_Entry_Attributes *attrs) {
     return WPDP_OK;
 }
 
-WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String *value, bool index) {
+WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String *value, bool is_index) {
     WPDP_Entry_Attribute *attr;
 
     attr = wpdp_new_zero(WPDP_Entry_Attribute, 1);
@@ -52,26 +82,10 @@ WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String
 
     attr->name = name;
     attr->value = value;
-    attr->index = index;
+    attr->is_index = is_index;
 
     return attr;
 }
-
-static int _ensure_capacity(WPDP_Entry_Attributes *attrs, int min) {
-    if (attrs->capacity < min) {
-        int num = attrs->capacity * 2;
-        if (num < min) {
-            num = min;
-        }
-        attrs->capacity = num;
-        attrs->attrs = wpdp_realloc(attrs->attrs, ((int)sizeof(WPDP_Entry_Attribute *) * attrs->capacity));
-    }
-
-    return WPDP_OK;
-}
-
-
-
 
 
 

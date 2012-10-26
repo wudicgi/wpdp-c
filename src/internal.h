@@ -59,7 +59,7 @@ WPDP_Entry_Attributes *wpdp_entry_attributes_create(void);
 int wpdp_entry_attributes_add(WPDP_Entry_Attributes *attrs, WPDP_Entry_Attribute *attr);
 int wpdp_entry_attributes_free(WPDP_Entry_Attributes *attrs);
 
-WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String *value, bool index);
+WPDP_Entry_Attribute *wpdp_entry_attribute_create(WPDP_String *name, WPDP_String *value, bool is_index);
 
 int section_init(uint8_t sect_type, WPIO_Stream *stream,
                  WPDP_OpenMode mode, Section **sect_out);

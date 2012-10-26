@@ -91,9 +91,9 @@ struct _WPDP {
 };
 
 struct _WPDP_Entry {
-    WPDP        *dp;
-    void        *metadata;
-    void        *attributes;
+    WPDP                    *dp;
+    WPDP_Entry_Info         *info;
+    WPDP_Entry_Attributes   *attributes;
 };
 
 // Entry.php: class WPDP_Entry_Information
@@ -115,7 +115,7 @@ struct _WPDP_Entry_Attributes {
 struct _WPDP_Entry_Attribute {
     WPDP_String     *name;
     WPDP_String     *value;
-    bool            index;
+    bool            is_index;
 };
 
 struct _WPDP_String_Builder {
@@ -141,30 +141,51 @@ struct _WPDP_Entries {
     int         position;
 };
 
+WPDP_API char *wpdp_library_version(void);
+WPDP_API bool wpdp_library_compatible_with(const char *version);
 
-WPDP_API int wpdp_open_stream(WPIO_Stream *stream_c, WPIO_Stream *stream_m,
-                                WPIO_Stream *stream_i, WPDP_OpenMode mode, WPDP **wpdp);
-WPDP_API int wpdp_export_stream(WPDP *dp, WPIO_Stream *stream_out, WPDP_ExportType type);
+/**
+ * 构造函数
+ */
+WPDP_API int wpdp_open_stream(
+    WPIO_Stream *stream_c,  // 内容文件操作对象
+    WPIO_Stream *stream_m,  // 元数据文件操作对象
+    WPIO_Stream *stream_i,  // 索引文件操作对象
+    WPDP_OpenMode mode,     // 打开模式
+    WPDP **wpdp
+);
 
 /*
 WPDP_API WPDP *wpdp_open(const char *filename, WPDP_OpenMode mode);
-WPDP_API int wpdp_create(const char *filename);
-
-WPDP_API int wpdp_compound(const char *filename);
-WPDP_API int wpdp_export(WPDP *dp, const char *filename_out, WPDP_ExportType type);
 */
+
+/**
+ * 关闭当前打开的数据堆
+ */
 WPDP_API int wpdp_close(WPDP *dp);
 
+WPDP_API void *wpdp_file_info(WPDP *dp);
+
+/**
+ * 获取当前数据堆已使用的空间
+ *
+ * @return integer 当前数据堆已使用的空间
+ */
 WPDP_API int64_t wpdp_file_space_used(WPDP *dp);
+/**
+ * 获取当前数据堆的可用空间
+ *
+ * @return integer 获取当前数据堆的可用空间
+ */
 WPDP_API int64_t wpdp_file_space_available(WPDP *dp);
 
+/**
+ * 获取条目迭代器
+ */
 WPDP_API int wpdp_iterator_init(WPDP *dp, WPDP_Iterator **iterator_out);
 WPDP_API int wpdp_iterator_next(WPDP_Iterator *iterator);
 
 WPDP_API void *wpdp_query(WPDP *dp, const char *attr_name, const char *attr_value);
-
-WPDP_API void *wpdp_file_info(WPDP *dp);
-WPDP_API char *wpdp_library_version(void);
 
 WPDP_String_Builder *wpdp_string_builder_create(int init_capacity);
 int wpdp_string_builder_append(WPDP_String_Builder *builder, void *data, int len);
