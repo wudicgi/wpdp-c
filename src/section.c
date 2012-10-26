@@ -50,7 +50,41 @@ int section_init(uint8_t sect_type, WPIO_Stream *stream,
  */
 int section_create(uint8_t file_type, uint8_t sect_type,
                    WPIO_Stream *stream) {
+    int rc;
 
+    assert(IN_ARRAY_3(file_type, HEADER_TYPE_CONTENTS, HEADER_TYPE_METADATA, HEADER_TYPE_INDEXES));
+    assert(IN_ARRAY_3(sect_type, SECTION_TYPE_CONTENTS, SECTION_TYPE_METADATA, SECTION_TYPE_INDEXES));
+
+    Section *sect;
+    StructHeader *header;
+
+    rc = struct_create_header(&header);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    header->type = file_type;
+    switch (sect_type) {
+        case SECTION_TYPE_CONTENTS:
+            header->ofsContents = HEADER_BLOCK_SIZE;
+            break;
+        case SECTION_TYPE_METADATA:
+            header->ofsMetadata = HEADER_BLOCK_SIZE;
+            break;
+        case SECTION_TYPE_INDEXES:
+            header->ofsIndexes = HEADER_BLOCK_SIZE;
+            break;
+    }
+
+    rc = struct_create_section(&sect);
+    RETURN_VAL_IF_NON_ZERO(rc);
+
+    sect->type = sect_type;
+
+    wpio_seek(stream, 0, SEEK_SET);
+    struct_write_header(stream, header);
+    struct_write_section(stream, sect);
+
+    // 写入了重要的结构和信息，但可能接下来还有其他操作，
+    // 所以写入流的缓冲区的操作由继承类中的方法进行
 }
 
 WPIO_Stream *section_get_stream(Section *sect) {
