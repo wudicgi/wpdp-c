@@ -9,12 +9,15 @@
 //#include <types.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "sglib.h"
 
 #include "wpio.h"
 
 typedef enum _OffsetType    OffsetType;
 
 typedef struct _Section         Section;
+
+typedef struct _SectionIndexesOffsets   SectionIndexesOffsets;
 
 typedef struct _WPDP_Entry_Args     WPDP_Entry_Args;
 
@@ -53,6 +56,11 @@ struct _WPDP_Entry_Args {
     // metadata
     int64_t                 metadata_offset;        // 元数据的偏移量
     WPDP_Entry_Attributes   *attributes;            // 条目属性
+};
+
+struct _SectionIndexesOffsets {
+    int64_t                 offset;
+    SectionIndexesOffsets   *next;
 };
 
 /* entry */
@@ -103,7 +111,7 @@ int section_indexes_open(WPIO_Stream *stream, WPDP_OpenMode mode, Section **sect
 int section_indexes_create(WPIO_Stream *stream);
 int section_indexes_flush(Section *sect);
 int64_t section_indexes_get_section_length(Section *sect);
-void *section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value);
+int section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value);
 int section_indexes_index(Section *sect, WPDP_Entry_Args *args);
 
 /* struct */

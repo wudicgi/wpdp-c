@@ -22,14 +22,14 @@
 #define ELEMENT_VALUE_OFFSET    ELEMENT_KEY_SIZE
 
 /**
- * 获取结点 p_node 中下标为 index 的元素指针 (blob 中)
+ * 获取 p_node 结点中下标为 index 的元素指针 (blob 中)
  */
 static void *_std_elem_ptr(PacketNode *p_node, int index) {
     return ((void *)(p_node->node->blob) + (ELEMENT_SIZE * index));
 }
 
 /**
- * 获取结点 p_node 中下标为 index 的元素指针 (blob_ex 中)
+ * 获取 p_node 结点中下标为 index 的元素指针 (blob_ex 中)
  */
 static void *_ext_elem_ptr(PacketNode *p_node, int index) {
     return ((void *)(p_node->blob_ex) + (ELEMENT_SIZE * index));
@@ -41,31 +41,51 @@ static void *_ext_elem_ptr(PacketNode *p_node, int index) {
 */
 
 /**
- * 获取元素 ptr_elem 的 element key 距结尾距离的字节数 (blob 或 blob_ex 中)
+ * 获取 ptr_elem 处元素的 key_str 距结尾距离的字节数 (blob 或 blob_ex 中)
  */
 static int _com_elem_key_str_distance(void *ptr_elem) {
     return (int)(*((uint16_t *)(ptr_elem + ELEMENT_KEY_OFFSET)));
 }
 
 /**
- * 获取结点 p_node 中距结尾 distance 字节处的 element key 指针 (blob 中)
+ * 获取 p_node 结点中距结尾 distance 字节处的 key_str 的指针 (blob 中)
  */
 static void *_std_elem_key_str_ptr(PacketNode *p_node, int distance) {
     return ((void *)p_node->node->blob + NODE_DATA_SIZE - distance);
 }
 
 /**
- * 获取结点 p_node 中距结尾 distance 字节处的 element key 指针 (blob_ex 中)
+ * 获取 p_node 结点中距结尾 distance 字节处的 key_str 的指针 (blob_ex 中)
  */
 static void *_ext_elem_key_str_ptr(PacketNode *p_node, int distance) {
     return ((void *)p_node->blob_ex + NODE_DATA_SIZE_EXPANDED - distance);
 }
 
 /**
- * 获取结点 p_node 中距结尾 distance 字节处的 element key 字符串长度 (blob 或 blob_ex 中)
+ * 获取 p_node 结点中距结尾 distance 字节处的 key_str 的长度 (blob 或 blob_ex 中)
  */
 static int _com_elem_key_str_len(void *ptr_key_str) {
     return ((int)(*((int8_t *)ptr_key_str)));
+}
+
+/**
+ * 获取 p_node 结点中下标为 index 的元素的 key_str (blob_ex 中)
+ */
+static WPDP_String *_get_element_key(PacketNode *p_node, int index) {
+    void *ptr_elem = _ext_elem_ptr(p_node, index);
+    void *ptr_key = _ext_elem_key_str_ptr(p_node, _com_elem_key_str_distance(ptr_elem));
+    int len_key = _com_elem_key_str_len(ptr_key);
+
+    return wpdp_string_direct(ptr_key + 1, len_key);
+}
+
+/**
+ * 获取 p_node 结点中下标为 index 的元素的 value (blob_ex 中)
+ */
+static int64_t _get_element_value(PacketNode *p_node, int index) {
+    void *ptr_elem = _ext_elem_ptr(p_node, index);
+
+    return *((int64_t *)(ptr_elem + ELEMENT_VALUE_OFFSET));
 }
 
 typedef struct _SectionIndexesCustom Custom;
@@ -226,61 +246,65 @@ int64_t section_indexes_get_section_length(Section *sect) {
  *
  * @throws WPDP_InternalException
  */
-void *section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value) {
-    // Possible traces:
-    // EXTERNAL -> find()
-    //
-    // So this method NEED to protect the nodes in cache
-/*
-    if (!array_key_exists($attr_name, $this->_table['indexes'])) {
-        return false;
+int section_indexes_find(Section *sect, WPDP_String *attr_name, WPDP_String *attr_value) {
+    int pos;
+
+    int64_t index_root_offset = _get_offset_root_from_table(sect, attr_name);
+    if (index_root_offset == -1) {
+        return WPDP_ERROR;
     }
-*/
 
     WPDP_String *key = attr_value;
 
-    int64_t offset = 0; // $this->_table['indexes'][$attr_name]['ofsRoot'];
+    int64_t offset = index_root_offset;
 
     PacketNode *p_node = _get_node(sect, offset, OFFSET_PARENT_NULL);
 
     while (!p_node->node->isLeaf) {
-        int pos = _binary_search_leftmost(p_node, key, true);
+        pos = _binary_search_leftmost(p_node, key, true);
         if (pos == -1) {
             offset = p_node->node->ofsExtra;
         } else {
-//            offset = node['elements'][$pos]['value'];
+            offset = _get_element_value(p_node, pos);
         }
 
-//        p_node = _get_node(offset, $node['_ofsSelf']);
+        p_node = _get_node(offset, p_node->offset_self, OFFSET_PARENT_NO_NEED);
     }
 
-    int pos = _binary_search_leftmost(p_node, key, false);
+    assert(p_node->node->isLeaf);
+
+    pos = _binary_search_leftmost(p_node, key, false);
 
     if (pos == _BINARY_SEARCH_NOT_FOUND) {
 //        return array();
     }
 
-//    offsets = array();
-/*
-    while ($node['elements'][$pos]['key'] == $key) {
-        $offsets[] = $node['elements'][$pos]['value'];
+    SectionIndexesOffsets *offsets = NULL;
 
-        if ($pos < count($node['elements']) - 1) {
-            $pos++;
-        } elseif ($node['ofsExtra'] != 0) {
-            $node =& $this->_getNode($node['ofsExtra'], $this->_node_parents[$node['_ofsSelf']]);
-            $pos = 0;
+    while (_key_compare(p_node, pos, key) == 0) {
+        SectionIndexesOffsets *offsets_item = wpdp_new_zero(SectionIndexesOffsets, 1);
+        offsets_item->offset = _get_element_value(p_node, pos);
+
+        SGLIB_LIST_ADD(SectionIndexesOffsets, offsets, offsets_item, next);
+
+        if (pos < (p_node->node->numElement - 1)) {
+            pos++;
+        } else if (p_node->node->ofsExtra != 0) {
+            p_node = _get_node(sect, p_node->node->ofsExtra, 0/*$this->_node_parents[$node['_ofsSelf']]*/);
+            pos = 0;
         } else {
             break;
         }
     }
 
-    return $offsets;
-*/
+//    return $offsets;
 
-    return NULL;
+    return WPDP_OK;
 }
 
+/**
+ * 从索引表中获取指定索引的偏移量
+ */
 static int64_t _get_offset_root_from_table(Section *sect, WPDP_String *attr_name) {
     Custom *custom = (Custom*)sect->custom;
     StructIndexTable *table = custom->_table;
@@ -289,27 +313,32 @@ static int64_t _get_offset_root_from_table(Section *sect, WPDP_String *attr_name
 
     int pos = 0;
     while (pos < length) {
+        // signature
         if (*((uint8_t *)(table->blob + pos)) != INDEX_SIGNATURE) {
             return -1;
         }
-        pos++;
+        pos += sizeof(uint8_t);
 
+        // type
         if (*((uint8_t *)(table->blob + pos)) != INDEX_TYPE_BTREE) {
             return -1;
         }
-        pos++;
+        pos += sizeof(uint8_t);
 
+        // name length
         int len = *((uint8_t *)(table->blob + pos));
-        pos++;
+        pos += sizeof(uint8_t);
 
-        WPDP_String *name = wpdp_string_direct(table->blob + pos, len);
+        // name string
+        WPDP_String *name = wpdp_string_direct(table->blob + pos, len); // to be noticed, possible memory leak
         pos += len;
 
+        // root offset
         if (wpdp_string_compare(name, attr_name) == 0) {
             int64_t offset = *((int64_t *)(table->blob + pos));
             return offset;
         }
-        pos += 8;
+        pos += sizeof(int64_t);
     }
 
     return -1;
@@ -381,9 +410,12 @@ static PacketNode *_get_node(Section *sect, int64_t offset, int64_t offset_paren
     p_node->offset_self = offset;
     p_node->offset_parent = offset_parent;
 
+    /* 将 blob 中的数据扩展复制到 blob_ex 中 */
     void *ptr_last_elem = _ext_elem_ptr(p_node, p_node->node->numElement - 1);
     int distance_last_key = _com_elem_key_str_distance(ptr_last_elem);
+    // 复制前端的 value (偏移量)
     memcpy(p_node->blob_ex, p_node->node->blob, (size_t)(ELEMENT_SIZE * p_node->node->numElement));
+    // 复制后端的 key_str (字符串)
     memcpy(_ext_elem_key_str_ptr(p_node, distance_last_key),
         _std_elem_key_str_ptr(p_node, distance_last_key),
         (size_t)distance_last_key);
@@ -484,18 +516,4 @@ static int _key_compare(PacketNode *p_node, int index, WPDP_String *key) {
     WPDP_String *key_in_elem = _get_element_key(p_node, index);
 
     return wpdp_string_compare(key_in_elem, key);
-}
-
-static WPDP_String *_get_element_key(PacketNode *p_node, int index) {
-    void *ptr_elem = _ext_elem_ptr(p_node, index);
-    void *ptr_key = _ext_elem_key_str_ptr(p_node, _com_elem_key_str_distance(ptr_elem));
-    int len_key = _com_elem_key_str_len(ptr_key);
-
-    return wpdp_string_direct(ptr_key + 1, len_key);
-}
-
-static int64_t _get_element_value(PacketNode *p_node, int index) {
-    void *ptr_elem = _ext_elem_ptr(p_node, index);
-
-    return *((int64_t *)(ptr_elem + ELEMENT_VALUE_OFFSET));
 }
