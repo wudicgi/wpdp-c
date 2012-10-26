@@ -1,21 +1,48 @@
 #include "internal.h"
 #include <math.h>
 
+/**
+ * 有结构类型参数 struct_type，因此需要使用宏定义。
+ * 含空间分配和 CHECK_IS_READ_EXACTLY 检查。
+ * 失败时 return 错误代码。
+ */
 #define STRUCT_READ_FIXED(stream, ptr_out, struct_type)    do { \
         struct_type *ptr; \
         size_t len; \
         ptr = wpdp_new_zero(struct_type, 1); \
+        if (ptr == NULL) { \
+            return WPDP_ERROR; \
+        } \
         len = wpio_read((stream), ptr, sizeof(struct_type)); \
-        CHECK_IS_READ_EXACTLY(len, sizeof(struct_type), error); \
+        CHECK_IS_READ_EXACTLY(len, sizeof(struct_type)); \
         *(ptr_out) = ptr; \
     } while (0)
 
-#define STRUCT_WRITE_FIXED(stream, ptr, struct_type) \
-    wpio_write(stream, ptr, sizeof(struct_type))
+/**
+ * 有结构类型参数 struct_type，因此需要使用宏定义。
+ * 含 CHECK_IS_WRITE_EXACTLY 检查。
+ * 失败时 return 错误代码。
+ */
+#define STRUCT_WRITE_FIXED(stream, ptr, struct_type)    do { \
+        size_t len; \
+        len = wpio_write((stream), (ptr), sizeof(struct_type)); \
+        CHECK_IS_WRITE_EXACTLY(len, sizeof(struct_type)); \
+    } while (0)
 
+/**
+ * 有结构类型参数 struct_type，因此需要使用宏定义。
+ * 含 signature, 空间分配和 CHECK_IS_READ_EXACTLY 检查。
+ * 失败时 return 错误代码。
+ */
 #define STRUCT_READ_VARIANT(stream, ptr_out, noblob, struct_type, struct_sign, block_size)    do { \
-        struct_type *ptr = wpdp_malloc_zero((block_size)); \
-        size_t len = wpio_read((stream), ptr, (size_t)(block_size)); \
+        struct_type *ptr; \
+        size_t len; \
+        ptr = wpdp_malloc_zero((block_size)); \
+        if (ptr == NULL) { \
+            return WPDP_ERROR; \
+        } \
+        len = wpio_read((stream), ptr, (size_t)(block_size)); \
+        CHECK_IS_READ_EXACTLY(len, (size_t)(block_size)); \
         if (ptr->signature != (struct_sign)) { \
             error_set_msg("Unexpected signature 0x%X, expecting 0x%X", \
                           ptr->signature, (struct_sign)); \
@@ -27,7 +54,11 @@
         } \
         if (ptr->lenBlock > (block_size)) { \
             ptr = wpdp_realloc(ptr, ptr->lenBlock); \
+            if (ptr == NULL) { \
+                return WPDP_ERROR; \
+            } \
             len = wpio_read((stream), (ptr + (block_size)), ((size_t)ptr->lenBlock - (size_t)(block_size))); \
+            CHECK_IS_READ_EXACTLY(len, ((size_t)ptr->lenBlock - (size_t)(block_size))); \
         } \
         *(ptr_out) = ptr; \
     } while (0)
@@ -155,7 +186,7 @@ int struct_create_node(StructNode **node_out) {
 }
 
 /**
- * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 读取结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_read_header(WPIO_Stream *stream, StructHeader **header_out) {
     STRUCT_READ_FIXED(stream, header_out, StructHeader);
@@ -170,7 +201,7 @@ int struct_read_header(WPIO_Stream *stream, StructHeader **header_out) {
 }
 
 /**
- * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 读取结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_read_section(WPIO_Stream *stream, StructSection **section_out) {
     STRUCT_READ_FIXED(stream, section_out, StructSection);
@@ -185,7 +216,7 @@ int struct_read_section(WPIO_Stream *stream, StructSection **section_out) {
 }
 
 /**
- * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 读取结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_read_node(WPIO_Stream *stream, StructNode **node_out) {
     STRUCT_READ_FIXED(stream, node_out, StructNode);
@@ -200,7 +231,7 @@ int struct_read_node(WPIO_Stream *stream, StructNode **node_out) {
 }
 
 /**
- * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 读取结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_read_metadata(WPIO_Stream *stream, StructMetadata **ptr_out, bool noblob) {
     STRUCT_READ_VARIANT(stream, ptr_out, noblob, StructMetadata,
@@ -210,7 +241,7 @@ int struct_read_metadata(WPIO_Stream *stream, StructMetadata **ptr_out, bool nob
 }
 
 /**
- * 读取结构体。含 signature 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 读取结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_read_index_table(WPIO_Stream *stream, StructIndexTable **ptr_out, bool noblob) {
     do {
@@ -241,18 +272,16 @@ int struct_read_index_table(WPIO_Stream *stream, StructIndexTable **ptr_out, boo
 }
 
 /**
- * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 写入结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_write_header(WPIO_Stream *stream, StructHeader *header) {
     STRUCT_WRITE_FIXED(stream, header, StructHeader);
-
-//    WPDP_StreamOperationException::checkIsWriteExactly($len_written, strlen($data_header));
 
     return RETURN_CODE(WPDP_OK);
 }
 
 /**
- * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 写入结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_write_section(WPIO_Stream *stream, StructSection *section) {
     STRUCT_WRITE_FIXED(stream, section, StructSection);
@@ -261,7 +290,7 @@ int struct_write_section(WPIO_Stream *stream, StructSection *section) {
 }
 
 /**
- * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 写入结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_write_node(WPIO_Stream *stream, StructNode *node) {
     STRUCT_WRITE_FIXED(stream, node, StructNode);
@@ -270,23 +299,29 @@ int struct_write_node(WPIO_Stream *stream, StructNode *node) {
 }
 
 /**
- * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 写入结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_write_metadata(WPIO_Stream *stream, StructMetadata *metadata) {
+    size_t len;
+
     memset((void *)metadata + metadata->lenActual, 0, (size_t)(metadata->lenBlock - metadata->lenActual));
 
-    wpio_write(stream, metadata, (size_t)metadata->lenBlock);
+    len = wpio_write(stream, metadata, (size_t)metadata->lenBlock);
+    CHECK_IS_WRITE_EXACTLY(len, (size_t)metadata->lenBlock);
 
     return RETURN_CODE(WPDP_OK);
 }
 
 /**
- * 写入结构体。含 CHECK_IS_WRITE_EXACTLY 检查。成功时返回 WPDP_OK, 失败时返回错误码
+ * 写入结构体。成功时返回 WPDP_OK, 失败时返回错误码
  */
 int struct_write_index_table(WPIO_Stream *stream, StructIndexTable *index_table) {
+    size_t len;
+
     memset((void *)index_table + index_table->lenActual, 0, (size_t)(index_table->lenBlock - index_table->lenActual));
 
-    wpio_write(stream, index_table, (size_t)index_table->lenBlock);
+    len = wpio_write(stream, index_table, (size_t)index_table->lenBlock);
+    CHECK_IS_WRITE_EXACTLY(len, (size_t)index_table->lenBlock);
 
     return RETURN_CODE(WPDP_OK);
 }

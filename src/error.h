@@ -7,8 +7,21 @@
 
 #define RETURN_CODE(rc)     (rc)
 
-#define CHECK_IS_READ_EXACTLY(actual, expected, error)
-#define CHECK_IS_WRITE_EXACTLY(actual, expected, error)
+#define CHECK_IS_READ_EXACTLY(actual, expected)     do { \
+        if (actual != expected) { \
+            error_set_msg("Failed to read %d bytes (%d bytes read actually)", \
+                          expected, actual); \
+            return WPDP_ERROR_STREAM_OPERATION; \
+        } \
+    } while (0)
+
+#define CHECK_IS_WRITE_EXACTLY(actual, expected)    do { \
+        if (actual != expected) { \
+            error_set_msg("Failed to write %d bytes (%d bytes written actually)", \
+                          expected, actual); \
+            return WPDP_ERROR_STREAM_OPERATION; \
+        } \
+    } while (0)
 
 #define IN_ARRAY_1(needle, val_1)  \
     (needle == val_1)
@@ -30,24 +43,6 @@
 
 #undef trace
 #define trace(msg, ...)
-
-/*
-#define CHECK_IS_READ_EXACTLY(actual, expected, error) \
-    if (actual != expected) { \
-        g_set_error(error, WPDP_ERROR, WPDP_ERROR_STREAM_OPERATION, \
-                    "Failed to read %d bytes (%d bytes read actually)", \
-                    expected, actual); \
-        return FALSE; \
-    }
-
-#define CHECK_IS_WRITE_EXACTLY(actual, expected, error) \
-    if (actual != expected) { \
-        g_set_error(error, WPDP_ERROR, WPDP_ERROR_STREAM_OPERATION, \
-                    "Failed to write %d bytes (%d bytes written actually)", \
-                    expected, actual); \
-        return FALSE; \
-    }
-*/
 
 // rc: return code
 #define WPDP_OK                                 0
